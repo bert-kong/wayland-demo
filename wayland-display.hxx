@@ -47,6 +47,7 @@ public:
 private:
 	void connect2server();
 	const int create_anonymous_file(const uint32_t size);
+	void clear_buffer(void *buf);
 
 private:
 	const int m_width;
@@ -65,6 +66,19 @@ private:
 
 
 	Image m_image[NR_BUFFERS];
+	void *m_memory;
+	bool m_frame_presented;
+
+private:
+	const static wl_registry_listener s_registry_listener;
+
+	/* frame presented callback */
+	const static wl_callback_listener s_callback_listener;
+	static void frame_presented(void *data, struct wl_callback *frame, uint32_t time);
+
+	/* buffer listener */
+	const static wl_buffer_listener s_buffer_listener;
+	static void buffer_release(void *, struct wl_buffer *);
 };
 
 #endif /* WAYLAND_DISPLAY_HXX_ */
