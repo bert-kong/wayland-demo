@@ -6,9 +6,10 @@ int main(int argc, char *argv[]) {
 
 	display.createBuffer();
 	display.createSurface();
+	return 0;
 
 	while (true) {
-		const int buf = display.acquireBuffer(void);
+		const int buf = display.acquireBuffer();
 		display.draw(buf);
 		display.presentBuffer(buf);
 	}

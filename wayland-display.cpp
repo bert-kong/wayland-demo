@@ -18,6 +18,8 @@
 
 
 #include "wayland-display.hxx"
+#include "ball.hxx"
+
 
 WaylandDisplay::WaylandDisplay(const int width,
 		                       const int height,
@@ -25,14 +27,49 @@ WaylandDisplay::WaylandDisplay(const int width,
   m_width(width), m_height(height), m_format(format),
   m_display(nullptr)
 {
+	m_ball[0] = new  Ball(20, 0xffff0000, {0, 0, width, height});
+	m_ball[0]->setPosition(50, 100);
+
+	m_ball[1] = new  Ball(20, 0xff0000ff, {0, 0, width, height});
+	m_ball[0]->setPosition(300, 150);
+	m_ball[0]->setVelocity(4, 1);
+
 	connect2server();
 }
 
 WaylandDisplay::~WaylandDisplay(void) {
-
+	if (m_ball[0]) {
+		delete m_ball[0];
+	}
+	if (m_ball[1]) {
+		delete m_ball[1];
+	}
 }
 
 void WaylandDisplay::connect2server() {
+	m_display = ::wl_display_connect(nullptr);
+
+	m_registry = ::wl_display_get_registry(m_display);
+
+	::wl_registry_add_listener(m_registry, &WaylandDisplay::s_registry_listener, this);
+
+	/* send request to the server */
+	::wl_display_dispatch(m_display);
+
+	/* check for interfaces */
+	if (m_compositor==nullptr) {
+
+	}
+
+	if (m_shell==nullptr) {
+
+	}
+
+	if (m_shm==nullptr) {
+
+	}
+
+	::wl_shm_add_listener(m_shm, &WaylandDisplay::s_shm_format_listener, this);
 
 }
 
@@ -56,6 +93,13 @@ const int WaylandDisplay::create_anonymous_file(const uint32_t size) {
 }
 
 void WaylandDisplay::createSurface() {
+	m_surface = ::wl_compositor_create_surface(m_compositor);
+
+	m_shell_surface = ::wl_shell_get_shell_surface(m_shell, m_surface);
+
+	::wl_shell_surface_add_listener(m_shell_surface, &WaylandDisplay::s_shell_surface_listener, this);
+
+	::wl_shell_surface_set_toplevel(m_shell_surface);
 
 }
 
@@ -124,8 +168,8 @@ void WaylandDisplay::draw(const int index) {
 
 	WaylandDisplay::clear_buffer(buf);
 
-	for (int i=0; i<2; i++) {
-		circle[i].draw(buf);
+	for (int i=0; i<NR_BALLS; i++) {
+		m_ball[i]->draw(buf);
 	}
 }
 
@@ -158,7 +202,87 @@ void WaylandDisplay::presentBuffer(const int index) {
 /**
  * Wayland Listeners
  */
-wl_callback_listener WaylandDisplay::s_callback_listener = {
+
+/////////////////////////////////////////////////////////////////////
+struct wl_registry_listener WaylandDisplay::s_registry_listener = {
+	WaylandDisplay::registry_handle_global_add,
+	WaylandDisplay::registry_handle_global_remove,
+};
+
+void WaylandDisplay::registry_handle_global_add(void *data,
+		                                        struct wl_registry *registry,
+												uint32_t id,
+												const char *interface_name,
+												uint32_t version) {
+	WaylandDisplay *display = static_cast<WaylandDisplay *>(data);
+
+	if (::strcmp(interface_name, wl_compositor_interface.name)==0) {
+		display->m_compositor = static_cast<struct wl_compositor *>(::wl_registry_bind(registry,
+				                                                                       id,
+																					   &wl_compositor_interface,
+																					   1));
+
+	}
+	else if (::strcmp(interface_name, wl_shell_interface.name)==0) {
+		display->m_shell = static_cast<struct wl_shell *>(::wl_registry_bind(registry,
+				                                                             id,
+																			 &wl_shell_interface,
+																			 1));
+	}
+	else if (::strcmp(interface_name, wl_shm_interface.name)==0) {
+		display->m_shm = static_cast<struct wl_shm *>(::wl_registry_bind(registry,
+				                                                         id,
+																		 &wl_shm_interface,
+																		 1));
+	}
+}
+
+
+void WaylandDisplay::registry_handle_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
+	::printf("debug ---> %s\n", __func__);
+}
+
+
+/////////////////////////////////////////////////////////////////////
+struct wl_shm_listener WaylandDisplay::s_shm_format_listener = {
+    WaylandDisplay::shm_memory_format_listner,
+};
+
+void WaylandDisplay::shm_memory_format_listner(void *data, struct wl_shm *shm, uint32_t fmt) {
+	WaylandDisplay *display = static_cast<WaylandDisplay *>(data);
+
+	switch (fmt) {
+	case WL_SHM_FORMAT_ABGR8888:
+		break;
+	case WL_SHM_FORMAT_ARGB8888:
+		display->m_format = fmt;
+		break;
+	}
+}
+
+/////////////////////////////////////////////////////////////////////
+struct wl_surface_listener WaylandDisplay::s_shell_surface_listener = {
+	WaylandDisplay::shell_surface_listener_ping,
+	WaylandDisplay::shell_surface_listener_config,
+};
+
+void WaylandDisplay::shell_surface_listener_ping(void *data,
+		                                         struct wl_shell_surface *shell_surface,
+												 uint32_t serial) {
+	::wl_shell_surface_pong(shell_surface, serial);
+}
+
+void WaylandDisplay::shell_surface_listener_config(void *,
+		                                           struct wl_shell_surface *shell_surface,
+												   uint32_t edge,
+												   int32_t width,
+												   int32_t height) {
+
+}
+
+
+/////////////////////////////////////////////////////////////////////
+struct wl_callback_listener WaylandDisplay::s_callback_listener = {
     WaylandDisplay::frame_presented,
 };
 
@@ -171,6 +295,8 @@ void WaylandDisplay::frame_presented(void *data, wl_callback *frame, uint32_t ti
 	::wl_callback_destroy(frame);
 }
 
+
+///////////////////////////////////////////////////////////////////////
 wl_buffer_listener WaylandDisplay::s_buffer_listener = {
 	WaylandDisplay::buffer_release,
 };
@@ -188,5 +314,4 @@ void WaylandDisplay::buffer_release(void *data, struct wl_buffer *buffer) {
 
 	image->in_use = false;
 }
-
 

@@ -9,13 +9,35 @@
 
 #include "ball.hxx"
 
-void Ball::update();
+void Ball::update() {
+	int x, y;
+	bool changed_direction = false;
+
+	(x = m_pos[0], y = m_pos[1]);
+
+	x += m_vel[0];
+	y += m_vel[1];
+
+	if ((m_x + m_radius)>x || (m_x + m_width)-m_radius<x) {
+		m_vel[0] *= -1;
+		changed_direction = true;
+	}
+
+	if ((m_y + m_radius)>0 || (m_y + m_height)-m_radius<y) {
+		m_vel[1] *= -1;
+		changed_direction = true;
+	}
+
+	if (changed_direction) {
+		return;
+	}
+
+	m_pos[0] = x, m_pos[1] = y;
+
 }
 
 void Ball::draw(void *buf) {
 	m_canvas = static_cast<uint8_t *>(buf);
-	m_width = width;
-	m_height = height;
 
 	update();
 

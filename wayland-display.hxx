@@ -17,6 +17,7 @@ public:
 		NR_BUFFERS = 3,
 		WIDTH      = 640,
 		HEIGHT     = 480,
+		NR_BALLS = 2,
 	};
 
 public:
@@ -69,16 +70,35 @@ private:
 	void *m_memory;
 	bool m_frame_presented;
 
+	Ball *m_ball[NR_BALLS];
+
+
 private:
 	const static wl_registry_listener s_registry_listener;
+	static void registry_handle_global_add(void *data, struct wl_registry *, uint32_t, const char *, uint32_t);
+	static void registry_handle_global_remove(void *data, struct wl_registry *, uint32_t);
 
 	/* frame presented callback */
 	const static wl_callback_listener s_callback_listener;
 	static void frame_presented(void *data, struct wl_callback *frame, uint32_t time);
 
+	/* surface listener */
+	const static wl_shell_surface_listener s_shell_surface_listener;
+	static void shell_surface_listener_ping(void *, struct wl_shell_surface*, uint32_t serial);
+	static void shell_surface_listener_config(void *,
+			                                  struct wl_shell_surface *,
+											  uint32_t edges,
+											  int32_t width,
+											  int32_t height);
+
 	/* buffer listener */
 	const static wl_buffer_listener s_buffer_listener;
 	static void buffer_release(void *, struct wl_buffer *);
+
+	/* shared memory format listener */
+	const static wl_shm_listener s_shm_format_listener;
+	static void shm_memory_format_listner(void *data, struct wl_shm *, uint32_t fmt);
+
 };
 
 #endif /* WAYLAND_DISPLAY_HXX_ */
